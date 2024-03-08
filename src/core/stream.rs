@@ -1,93 +1,35 @@
-use iced::theme;
-use iced::widget::{
-    column, container, row, scrollable,
-};
-use iced::{
-    Alignment, Element, Length,
-};
+use iced::widget::{column, container, scrollable, text};
+use iced::{Alignment, Element, Length};
 
-use crate::components::square::square;
 use crate::message::Message;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Stream {
-    pub title: &'static str,
+    pub title: String,
+    pub url: String,
 }
 
 impl Stream {
-    const LIST: &'static [Self] = &[
-        // Self {
-        //     title: "Centered",
-        //     view: centered,
-        // },
-        // Self {
-        //     title: "Column",
-        //     view: column_,
-        // },
-        Self { title: "Left" },
-        Self { title: "KKlog" },
-        Self { title: "Right" },
-    ];
-
-    fn is_first(self) -> bool {
-        Self::LIST.first() == Some(&self)
-    }
-
-    fn is_last(self) -> bool {
-        Self::LIST.last() == Some(&self)
-    }
-
-    pub fn previous(self) -> Self {
-        let Some(index) = Self::LIST.iter().position(|&example| example == self) else {
-            return self;
-        };
-
-        Self::LIST
-            .get(index.saturating_sub(1))
-            .copied()
-            .unwrap_or(self)
-    }
-
-    pub fn next(self) -> Self {
-        let Some(index) = Self::LIST.iter().position(|&example| example == self) else {
-            return self;
-        };
-
-        Self::LIST.get(index + 1).copied().unwrap_or(self)
-    }
-
-    fn sidebar(&self) -> Element<Message> {
-        container(
-            column!["Sidebar!", square(50), square(50)]
-                .spacing(40)
-                .padding(10)
-                .width(200)
-                .align_items(Alignment::Center),
-        )
-        .style(theme::Container::Box)
-        .height(Length::Fill)
-        .center_y().into()
+    pub fn new(title: String, url: String) -> Self {
+        Self {
+            title,
+            url
+        }
     }
 
     pub fn view(&self) -> Element<Message> {
-        let sidebar = self.sidebar();
-        let content = container(
+        container(
             scrollable(
-                column!["Content!", square(400), square(200), square(400), "The end"]
+                column![
+                    text(&self.url)
+                ]
                     .spacing(40)
                     .align_items(Alignment::Center)
                     .width(Length::Fill),
             )
             .height(Length::Fill),
         )
-        .padding(10);
-
-        row![sidebar, content].into()
-    }
-}
-
-impl Default for Stream {
-    fn default() -> Self {
-        Self::LIST[0]
+        .padding(10)
+        .into()
     }
 }

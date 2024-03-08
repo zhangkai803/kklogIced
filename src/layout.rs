@@ -1,20 +1,21 @@
-use iced::executor;
-use iced::keyboard;
-use iced::widget::{
-    button, column, container, horizontal_space, pick_list, row, text,
-};
-use iced::{
-    Alignment, Application, Command, Element, Length,
-    Subscription, Theme,
-};
-
+use crate::core::config::Config;
 use crate::core::stream::Stream;
 use crate::message::Message;
+use iced::executor;
+use iced::keyboard;
+use iced::theme;
+use iced::widget::Column;
+use iced::widget::{button, column, container, horizontal_space, pick_list, row, scrollable, text};
+use iced::{Alignment, Application, Command, Element, Length, Subscription, Theme};
+use serde_yaml::Error;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct Layout {
     pub stream: Stream,
     pub theme: Theme,
+    pub config: Config,
+    // pub selected_node: Option<Node>,
 }
 
 impl Application for Layout {
@@ -28,8 +29,10 @@ impl Application for Layout {
             Self {
                 stream: Stream::default(),
                 theme: Theme::Light,
+                config: Config::default(),
+                // selected_node: None,
             },
-            Command::none(),
+            Command::perform(load_yaml(), Message::YamlLoaded),
         )
     }
 
@@ -39,27 +42,28 @@ impl Application for Layout {
 
     fn update(&mut self, message: Self::Message) -> Command<Message> {
         match message {
-            Message::Next => {
-                self.stream = self.stream.next();
-            }
-            Message::Previous => {
-                self.stream = self.stream.previous();
-            }
             Message::ThemeSelected(theme) => {
                 self.theme = theme;
             }
             Message::AddSource => {}
-            Message::Quit => {}
+            Message::YamlLoaded(Ok(config)) => {
+                self.config = config;
+            }
+            Message::YamlLoaded(Err(err)) => {
+                println!("err: {:?}", err)
+            }
+            Message::SourceSelected(node) => {
+                println!("selected: {:?}", node);
+                self.stream = Stream::new(node.source.clone(), format!("{}", node.url("env", self.config.user.token.as_str())));
+                // self.selected_node = Some(node);
+            }
         }
 
         Command::none()
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        use keyboard::key;
         keyboard::on_key_press(|key, _modifiers| match key {
-            keyboard::Key::Named(key::Named::ArrowLeft) => Some(Message::Previous),
-            keyboard::Key::Named(key::Named::ArrowRight) => Some(Message::Next),
             _ => {
                 println!("{:?}", key);
                 None
@@ -73,18 +77,14 @@ impl Application for Layout {
                 .padding([5, 10])
                 .on_press(Message::AddSource),
             horizontal_space(),
-            text(self.stream.title),
+            text(self.stream.title.as_str()),
             horizontal_space(),
-            button("← Previous")
-                .padding([5, 10])
-                .on_press(Message::Previous),
-            button("Next →").padding([5, 10]).on_press(Message::Next),
             pick_list(Theme::ALL, Some(&self.theme), Message::ThemeSelected),
         ]
         .spacing(20)
         .align_items(Alignment::Center);
 
-        let stream = container(self.stream.view())
+        let stream = container(row![self.sidebar(), self.stream.view()])
             .style(|theme: &Theme| {
                 let palette = theme.extended_palette();
 
@@ -102,4 +102,31 @@ impl Application for Layout {
     fn theme(&self) -> Theme {
         self.theme.clone()
     }
+}
+
+impl Layout {
+    fn sidebar(&self) -> Element<Message> {
+        container(scrollable(
+            Column::from_vec(self.config.envs.iter().map(|node| node.view()).collect())
+                .spacing(40)
+                .padding(10)
+                .width(200)
+                .align_items(Alignment::Start),
+        ))
+        .style(theme::Container::Box)
+        .height(Length::Fill)
+        .into()
+    }
+}
+
+async fn read_yaml() -> Option<String> {
+    if let Some(home) = std::env::home_dir() {
+        return Some(std::fs::read_to_string(format!("{}/.kkconf.yaml", home.display())).expect("read yaml err"));
+    }
+    None
+}
+
+async fn load_yaml() -> Result<Config, Arc<Error>> {
+    let conf: Config = serde_yaml::from_str(read_yaml().await.unwrap().as_str())?;
+    Ok(conf)
 }
