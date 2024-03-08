@@ -54,7 +54,7 @@ impl Application for Layout {
             }
             Message::SourceSelected(node) => {
                 println!("selected: {:?}", node);
-                self.stream = Stream::new(format!("{}", node.source));
+                self.stream = Stream::new(node.source.clone(), format!("{}", node.url("env", self.config.user.token.as_str())));
                 // self.selected_node = Some(node);
             }
         }
@@ -119,11 +119,14 @@ impl Layout {
     }
 }
 
-async fn read_yaml() -> String {
-    std::fs::read_to_string("/Users/k/.kkconf.yaml").expect("read yaml err")
+async fn read_yaml() -> Option<String> {
+    if let Some(home) = std::env::home_dir() {
+        return Some(std::fs::read_to_string(format!("{}/.kkconf.yaml", home.display())).expect("read yaml err"));
+    }
+    None
 }
 
 async fn load_yaml() -> Result<Config, Arc<Error>> {
-    let conf: Config = serde_yaml::from_str(read_yaml().await.as_str())?;
+    let conf: Config = serde_yaml::from_str(read_yaml().await.unwrap().as_str())?;
     Ok(conf)
 }

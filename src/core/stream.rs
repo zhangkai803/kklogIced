@@ -6,12 +6,14 @@ use crate::message::Message;
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Stream {
     pub title: String,
+    pub url: String,
 }
 
 impl Stream {
-    pub fn new(title: String) -> Self {
+    pub fn new(title: String, url: String) -> Self {
         Self {
             title,
+            url
         }
     }
 
@@ -19,7 +21,7 @@ impl Stream {
         container(
             scrollable(
                 column![
-                    text(&self.title)
+                    text(&self.url)
                 ]
                     .spacing(40)
                     .align_items(Alignment::Center)

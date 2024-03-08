@@ -23,6 +23,13 @@ impl Node {
             .style(theme::Button::Text)
             .into()
     }
+
+    pub fn url(&self, env: &str, token: &str) -> String {
+        format!(
+            "wss://value.weike.fm/ws/api/k8s/{}/pods/log?container=app&follow=true&previous=false&timestamps=true&prefix=false&tailLines=2000&proj_id=1&namespace={}&label=app={},cicd_env=stable,name={},type={},version=stable&token={}",
+            env, self.namespace, self.deployment, self.name, self.r#type, token
+        )
+    }
 }
 
 impl ToString for Node {
