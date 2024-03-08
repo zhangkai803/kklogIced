@@ -1,8 +1,20 @@
+use iced::executor;
+use iced::keyboard;
+use iced::widget::{
+    button, column, container, horizontal_space, pick_list, row, text,
+};
+use iced::{
+    Alignment, Application, Command, Element, Length,
+    Subscription, Theme,
+};
+
+use crate::core::stream::Stream;
+use crate::message::Message;
 
 #[derive(Debug)]
-struct Layout {
-    stream: Stream,
-    theme: Theme,
+pub struct Layout {
+    pub stream: Stream,
+    pub theme: Theme,
 }
 
 impl Application for Layout {

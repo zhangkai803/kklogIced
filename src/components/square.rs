@@ -1,5 +1,11 @@
+use crate::message::Message;
+use iced::mouse;
+use iced::widget::canvas;
+use iced::{
+    Element, Length, Point, Rectangle, Renderer, Theme,
+};
 
-fn square<'a>(size: impl Into<Length> + Copy) -> Element<'a, Message> {
+pub fn square<'a>(size: impl Into<Length> + Copy) -> Element<'a, Message> {
     struct Square;
 
     impl canvas::Program<Message> for Square {

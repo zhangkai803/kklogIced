@@ -1,7 +1,17 @@
+use iced::theme;
+use iced::widget::{
+    column, container, row, scrollable,
+};
+use iced::{
+    Alignment, Element, Length,
+};
+
+use crate::components::square::square;
+use crate::message::Message;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Stream {
-    title: &'static str,
+pub struct Stream {
+    pub title: &'static str,
 }
 
 impl Stream {
@@ -27,7 +37,7 @@ impl Stream {
         Self::LIST.last() == Some(&self)
     }
 
-    fn previous(self) -> Self {
+    pub fn previous(self) -> Self {
         let Some(index) = Self::LIST.iter().position(|&example| example == self) else {
             return self;
         };
@@ -38,7 +48,7 @@ impl Stream {
             .unwrap_or(self)
     }
 
-    fn next(self) -> Self {
+    pub fn next(self) -> Self {
         let Some(index) = Self::LIST.iter().position(|&example| example == self) else {
             return self;
         };
@@ -48,20 +58,18 @@ impl Stream {
 
     fn sidebar(&self) -> Element<Message> {
         container(
-            column![
-                "Sidebar!", square(50), square(50)
-            ]
-            .spacing(40)
-            .padding(10)
-            .width(200)
-            .align_items(Alignment::Center),
+            column!["Sidebar!", square(50), square(50)]
+                .spacing(40)
+                .padding(10)
+                .width(200)
+                .align_items(Alignment::Center),
         )
         .style(theme::Container::Box)
         .height(Length::Fill)
-        .center_y()
+        .center_y().into()
     }
 
-    fn view(&self) -> Element<Message> {
+    pub fn view(&self) -> Element<Message> {
         let sidebar = self.sidebar();
         let content = container(
             scrollable(

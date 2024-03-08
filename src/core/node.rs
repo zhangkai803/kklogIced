@@ -1,4 +1,4 @@
-use iced::Element;
+use iced::{widget::text, Element};
 
 use crate::message::Message;
 
@@ -13,17 +13,7 @@ pub struct Node {
 }
 
 impl Node {
-    fn new() -> Self {
-        Self {
-            name: todo!(),
-            project: todo!(),
-            deployment: todo!(),
-            r#type: todo!(),
-            pod: todo!(),
-            namespace: todo!(),
-        }
-    }
-    fn view(&self) -> Element<Message>{
-
+    fn view(&self) -> Element<Message> {
+        text("text").into()
     }
 }
