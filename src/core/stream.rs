@@ -5,11 +5,11 @@ use crate::message::Message;
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Stream {
-    pub title: &'static str,
+    pub title: String,
 }
 
 impl Stream {
-    pub fn new(title: &'static str) -> Self {
+    pub fn new(title: String) -> Self {
         Self {
             title,
         }

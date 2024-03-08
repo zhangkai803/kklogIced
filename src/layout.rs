@@ -54,7 +54,7 @@ impl Application for Layout {
             }
             Message::SourceSelected(node) => {
                 println!("selected: {:?}", node);
-                self.stream = Stream::new(node.source.as_str());
+                self.stream = Stream::new(format!("{}", node.source));
                 // self.selected_node = Some(node);
             }
         }
@@ -77,7 +77,7 @@ impl Application for Layout {
                 .padding([5, 10])
                 .on_press(Message::AddSource),
             horizontal_space(),
-            text(self.stream.title),
+            text(self.stream.title.as_str()),
             horizontal_space(),
             pick_list(Theme::ALL, Some(&self.theme), Message::ThemeSelected),
         ]
