@@ -1,6 +1,6 @@
 use crate::core::config::Config;
-use crate::core::stream::Stream;
 use crate::core::node::Node;
+use crate::core::stream::Stream;
 use crate::message::Message;
 use iced::executor;
 use iced::keyboard;
@@ -16,7 +16,7 @@ pub struct Layout {
     pub stream: Stream,
     pub theme: Theme,
     pub config: Config,
-    // pub selected_node: Option<Node>,
+    pub selected_node: Option<Node>,
 }
 
 impl Application for Layout {
@@ -31,7 +31,7 @@ impl Application for Layout {
                 stream: Stream::default(),
                 theme: Theme::Light,
                 config: Config::default(),
-                // selected_node: None,
+                selected_node: None,
             },
             Command::perform(load_yaml(), Message::YamlLoaded),
         )
@@ -51,16 +51,22 @@ impl Application for Layout {
                 self.config = config;
             }
             Message::YamlLoaded(Err(err)) => {
-                println!("err: {:?}", err)
+                println!("load yaml err: {:?}", err)
             }
             Message::SourceSelected(node) => {
                 println!("selected: {:?}", node);
+                self.selected_node = Some(node.clone());
                 self.stream = Stream::new(
                     node.source.clone(),
-                    format!("{}", node.url("env", self.config.user.token.as_str())),
+                    format!("{}", node.url("dev", self.config.user.token.as_str())),
                 );
-                // self.selected_node = Some(node);
+                // return Command::perform(wss(node.url("dev", self.config.user.token.as_str())), Message::WssRead);
             }
+            Message::WssRead(Some(msg)) => {
+                self.stream.buf.push(msg.to_string());
+                println!("len after push: {}", self.stream.buf.len());
+            }
+            Message::WssRead(None) => {}
         }
 
         Command::none()
@@ -69,7 +75,7 @@ impl Application for Layout {
     fn subscription(&self) -> Subscription<Message> {
         keyboard::on_key_press(|key, _modifiers| match key {
             _ => {
-                println!("{:?}", key);
+                // println!("{:?}", key);
                 None
             }
         })

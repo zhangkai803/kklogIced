@@ -6,9 +6,6 @@ use iced::{
 };
 use serde::Deserialize;
 
-use tungstenite::connect;
-use url::Url;
-
 #[derive(Debug, Clone, Default, Deserialize, PartialEq)]
 pub struct Node {
     pub source: String,
@@ -21,34 +18,6 @@ pub struct Node {
 
 impl Node {
     pub fn view(&self) -> Element<Message> {
-        let url = Url::parse(self.url("dev", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6ODksImV4cCI6MTcxMDUyMTUzNX0.o9xNwcT5IAZv23nKVQ_Ci7jILAR0b4-9VG_MHy3jM_0").as_str()).unwrap();
-        println!("connect to: {:?}", url.as_str());
-        match connect(url) {
-            Ok(r) => {
-                let (mut socket, response) = r;
-
-                println!("Connected to the server");
-                println!("Response HTTP code: {}", response.status());
-                for (ref header, value) in response.headers() {
-                    println!("{}: {:?}", header, value);
-                }
-
-                // loop {
-                //     match socket.read() {
-                //         Ok(msg) => {
-                //             println!("{:?}", msg);
-                //         }
-                //         Err(err) => {
-                //             println!("err: {:?}", err)
-                //         }
-                //     }
-                // }
-            }
-            Err(err) => {
-                println!("wss connect err: {}", err);
-            }
-        }
-
         button(text(self.source.clone()))
             .on_press(Message::SourceSelected(self.to_owned()))
             .style(theme::Button::Text)
