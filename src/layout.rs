@@ -1,5 +1,6 @@
 use crate::core::config::Config;
 use crate::core::stream::Stream;
+use crate::core::node::Node;
 use crate::message::Message;
 use iced::executor;
 use iced::keyboard;
@@ -110,7 +111,7 @@ impl Application for Layout {
 impl Layout {
     fn sidebar(&self) -> Element<Message> {
         container(scrollable(
-            Column::from_vec(self.config.envs.iter().map(|node| node.view()).collect())
+            Column::with_children(self.config.envs.iter().map(Node::view))
                 .spacing(40)
                 .padding(10)
                 .width(200)

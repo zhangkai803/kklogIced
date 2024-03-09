@@ -33,16 +33,16 @@ impl Node {
                     println!("{}: {:?}", header, value);
                 }
 
-                loop {
-                    match socket.read() {
-                        Ok(msg) => {
-                            println!("{:?}", msg.);
-                        }
-                        Err(err) => {
-                            println!("err: {:?}", err)
-                        }
-                    }
-                }
+                // loop {
+                //     match socket.read() {
+                //         Ok(msg) => {
+                //             println!("{:?}", msg);
+                //         }
+                //         Err(err) => {
+                //             println!("err: {:?}", err)
+                //         }
+                //     }
+                // }
             }
             Err(err) => {
                 println!("wss connect err: {}", err);
