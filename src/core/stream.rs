@@ -11,18 +11,13 @@ pub struct Stream {
 
 impl Stream {
     pub fn new(title: String, url: String) -> Self {
-        Self {
-            title,
-            url
-        }
+        Self { title, url }
     }
 
     pub fn view(&self) -> Element<Message> {
         container(
             scrollable(
-                column![
-                    text(&self.url)
-                ]
+                column![text(&self.url)]
                     .spacing(40)
                     .align_items(Alignment::Center)
                     .width(Length::Fill),

@@ -54,7 +54,10 @@ impl Application for Layout {
             }
             Message::SourceSelected(node) => {
                 println!("selected: {:?}", node);
-                self.stream = Stream::new(node.source.clone(), format!("{}", node.url("env", self.config.user.token.as_str())));
+                self.stream = Stream::new(
+                    node.source.clone(),
+                    format!("{}", node.url("env", self.config.user.token.as_str())),
+                );
                 // self.selected_node = Some(node);
             }
         }
@@ -121,7 +124,10 @@ impl Layout {
 
 async fn read_yaml() -> Option<String> {
     if let Some(home) = std::env::home_dir() {
-        return Some(std::fs::read_to_string(format!("{}/.kkconf.yaml", home.display())).expect("read yaml err"));
+        return Some(
+            std::fs::read_to_string(format!("{}/.kkconf.yaml", home.display()))
+                .expect("read yaml err"),
+        );
     }
     None
 }
