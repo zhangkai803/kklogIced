@@ -3,7 +3,7 @@ use iced::{Alignment, Element, Length};
 
 use crate::message::Message;
 
-use tungstenite::connect;
+use tokio_tungstenite::tungstenite::connect;
 use url::Url;
 
 #[derive(Debug, Default, Clone, PartialEq)]
