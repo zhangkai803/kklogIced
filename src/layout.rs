@@ -3,26 +3,17 @@ use crate::core::node::Node;
 use crate::core::stream::Stream;
 use crate::message::Message;
 use iced::executor;
-use iced::futures::SinkExt;
 use iced::futures::StreamExt;
-use iced::futures::FutureExt;
-use iced::keyboard;
-use iced::subscription;
 use iced::theme;
 use iced::widget::Column;
 use iced::widget::{button, column, container, horizontal_space, pick_list, row, scrollable, text};
 use iced::{Alignment, Application, Command, Element, Length, Subscription, Theme};
 use serde_yaml::Error;
-use std::fmt::format;
 use std::hash::Hash;
 use std::sync::Arc;
-use iced::time;
-use std::time::{Duration, Instant};
 
-use url::Url;
 use tungstenite::connect;
-use iced::futures::stream::BoxStream;
-use std::{sync::mpsc, thread};
+use url::Url;
 
 #[derive(Debug)]
 pub struct Layout {
@@ -78,13 +69,11 @@ impl Application for Layout {
             }
             Message::WssRead(Some(msg)) => {
                 // println!("WssRead: {:?}", msg);
-                self.stream.buf.push(format!("{}: {:?}", self.stream.buf.len(), msg.to_string()));
+                self.stream
+                    .buf
+                    .push(format!("{}: {:?}", self.stream.buf.len(), msg.to_string()));
             }
             Message::WssRead(None) => {}
-            Message::Tick(_ins) => {
-                println!("Tick: {:?}", _ins);
-                self.stream.buf.push(format!("{}: {:?}", self.stream.buf.len(), _ins));
-            }
         }
 
         Command::none()
@@ -176,7 +165,7 @@ struct MyRecipe {
 
 impl MyRecipe {
     fn new(url: String) -> Self {
-        Self{url}
+        Self { url }
     }
 }
 
@@ -187,63 +176,52 @@ impl iced::advanced::subscription::Recipe for MyRecipe {
         self.url.hash(state)
     }
 
-    fn stream(self: Box<Self>, input: iced::advanced::subscription::EventStream) -> iced::advanced::graphics::futures::BoxStream<Self::Output> {
+    fn stream(
+        self: Box<Self>,
+        input: iced::advanced::subscription::EventStream,
+    ) -> iced::advanced::graphics::futures::BoxStream<Self::Output> {
         println!("stream called {:?}", self.url);
         let (sender, receiver) = std::sync::mpsc::channel::<String>();
 
         // 开启新线程发送消息
         std::thread::spawn(move || {
+            let url = Url::parse(self.url.as_str()).expect("wss url incorrect");
+            match connect(url) {
+                Ok(r) => {
+                    let (mut socket, response) = r;
 
-        let url = Url::parse(self.url.as_str()).unwrap();
-        match connect(url) {
-            Ok(r) => {
-                let (mut socket, response) = r;
-
-                println!(
-                    "Connected to the server. Response HTTP code: {}",
-                    response.status()
-                );
-                // for (ref header, value) in response.headers() {
-                //     println!("{}: {:?}", header, value);
-                // }
-                loop {
-                    match socket.read() {
-                        Ok(msg) => {
-                            println!("message received: {:?}", msg);
-
-                            if let Err(_) = sender.send(msg.to_string()) {
-                                break; // 如果发送出错（例如，接收器已被丢弃），则退出循环
+                    println!(
+                        "Connected to the server. Response HTTP code: {}",
+                        response.status()
+                    );
+                    loop {
+                        match socket.read() {
+                            Ok(msg) => {
+                                // println!("message received: {:?}", msg);
+                                if let Err(_) = sender.send(msg.to_string()) {
+                                    break; // 如果发送出错（例如，接收器已被丢弃），则退出循环
+                                }
                             }
-                            // let res = sender.try_send(msg);
-                            // if res.is_err() {
-                            //     println!("push msg err: {:?}", res.unwrap_err())
-                            // }
-                            // Command::perform(wss_msg_read(msg), Message::WssRead);
-                            // Some(msg)
-                        }
-                        Err(err) => {
-                            println!("wss read err: {:?}", err);
-                            // None
+                            Err(err) => {
+                                println!("wss read err: {:?}", err);
+                                break;
+                            }
                         }
                     }
                 }
+                Err(err) => {
+                    println!("wss connect err: {}", err);
+                }
             }
-            Err(err) => {
-                println!("wss connect err: {}", err);
-            }
-        }
-
-            // loop {
-            //     if let Err(_) = sender.send(self.url.clone()) {
-            //         break; // 如果发送出错（例如，接收器已被丢弃），则退出循环
-            //     }
-            //     std::thread::sleep(std::time::Duration::from_secs(1));
-            // }
         });
 
         // 将 mpsc 接收器转换为流
-        iced::futures::stream::unfold(receiver, |mut receiver| async move {
-            receiver.recv().ok().map(|msg| (Message::WssRead(Some(msg)), receiver))
-        }).boxed()
+        iced::futures::stream::unfold(receiver, |receiver| async move {
+            receiver
+                .recv()
+                .ok()
+                .map(|msg| (Message::WssRead(Some(msg)), receiver))
+        })
+        .boxed()
     }
 }
