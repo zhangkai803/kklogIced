@@ -1,21 +1,26 @@
 use crate::core::config::Config;
+use crate::core::node::Node;
 use crate::core::stream::Stream;
 use crate::message::Message;
 use iced::executor;
-use iced::keyboard;
+use iced::futures::StreamExt;
 use iced::theme;
 use iced::widget::Column;
 use iced::widget::{button, column, container, horizontal_space, pick_list, row, scrollable, text};
 use iced::{Alignment, Application, Command, Element, Length, Subscription, Theme};
 use serde_yaml::Error;
+use std::hash::Hash;
 use std::sync::Arc;
+
+use tungstenite::connect;
+use url::Url;
 
 #[derive(Debug)]
 pub struct Layout {
     pub stream: Stream,
     pub theme: Theme,
     pub config: Config,
-    // pub selected_node: Option<Node>,
+    pub selected_node: Option<Node>,
 }
 
 impl Application for Layout {
@@ -30,7 +35,7 @@ impl Application for Layout {
                 stream: Stream::default(),
                 theme: Theme::Light,
                 config: Config::default(),
-                // selected_node: None,
+                selected_node: None,
             },
             Command::perform(load_yaml(), Message::YamlLoaded),
         )
@@ -41,6 +46,7 @@ impl Application for Layout {
     }
 
     fn update(&mut self, message: Self::Message) -> Command<Message> {
+        // println!("update called {:?}", self);
         match message {
             Message::ThemeSelected(theme) => {
                 self.theme = theme;
@@ -50,25 +56,44 @@ impl Application for Layout {
                 self.config = config;
             }
             Message::YamlLoaded(Err(err)) => {
-                println!("err: {:?}", err)
+                println!("load yaml err: {:?}", err)
             }
             Message::SourceSelected(node) => {
-                println!("selected: {:?}", node);
-                self.stream = Stream::new(node.source.clone(), format!("{}", node.url("env", self.config.user.token.as_str())));
-                // self.selected_node = Some(node);
+                // println!("selected: {:?}", node);
+                self.selected_node = Some(node.clone());
+                self.stream = Stream::new(
+                    node.source.clone(),
+                    node.url("dev", self.config.user.token.as_str()).clone(),
+                );
+                // return Command::perform(wss(node.url("dev", self.config.user.token.as_str())), Message::WssRead);
             }
+            Message::WssRead(Some(msg)) => {
+                // println!("WssRead: {:?}", msg);
+                self.stream
+                    .buf
+                    .push(format!("{}: {:?}", self.stream.buf.len(), msg.to_string()));
+            }
+            Message::WssRead(None) => {}
         }
 
         Command::none()
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        keyboard::on_key_press(|key, _modifiers| match key {
-            _ => {
-                println!("{:?}", key);
-                None
-            }
-        })
+        // println!("subscription called {:?}", self.stream.url);
+        // let tick = time::every(Duration::from_millis(1000)).map(Message::Tick);
+        // let read = read_wss(self.stream.wss);
+
+        let my = Subscription::from_recipe(MyRecipe::new(self.stream.url.clone()));
+        let s_vec = vec![my];
+        Subscription::batch(s_vec)
+
+        // keyboard::on_key_press(|key, _modifiers| match key {
+        //     _ => {
+        //         // println!("{:?}", key);
+        //         None
+        //     }
+        // })
     }
 
     fn view(&self) -> Element<Message> {
@@ -107,7 +132,7 @@ impl Application for Layout {
 impl Layout {
     fn sidebar(&self) -> Element<Message> {
         container(scrollable(
-            Column::from_vec(self.config.envs.iter().map(|node| node.view()).collect())
+            Column::with_children(self.config.envs.iter().map(Node::view))
                 .spacing(40)
                 .padding(10)
                 .width(200)
@@ -121,7 +146,10 @@ impl Layout {
 
 async fn read_yaml() -> Option<String> {
     if let Some(home) = std::env::home_dir() {
-        return Some(std::fs::read_to_string(format!("{}/.kkconf.yaml", home.display())).expect("read yaml err"));
+        return Some(
+            std::fs::read_to_string(format!("{}/.kkconf.yaml", home.display()))
+                .expect("read yaml err"),
+        );
     }
     None
 }
@@ -129,4 +157,71 @@ async fn read_yaml() -> Option<String> {
 async fn load_yaml() -> Result<Config, Arc<Error>> {
     let conf: Config = serde_yaml::from_str(read_yaml().await.unwrap().as_str())?;
     Ok(conf)
+}
+
+struct MyRecipe {
+    url: String,
+}
+
+impl MyRecipe {
+    fn new(url: String) -> Self {
+        Self { url }
+    }
+}
+
+impl iced::advanced::subscription::Recipe for MyRecipe {
+    type Output = Message;
+
+    fn hash(&self, state: &mut iced::advanced::Hasher) {
+        self.url.hash(state)
+    }
+
+    fn stream(
+        self: Box<Self>,
+        input: iced::advanced::subscription::EventStream,
+    ) -> iced::advanced::graphics::futures::BoxStream<Self::Output> {
+        println!("stream called {:?}", self.url);
+        let (sender, receiver) = std::sync::mpsc::channel::<String>();
+
+        // 开启新线程发送消息
+        std::thread::spawn(move || {
+            let url = Url::parse(self.url.as_str()).expect("wss url incorrect");
+            match connect(url) {
+                Ok(r) => {
+                    let (mut socket, response) = r;
+
+                    println!(
+                        "Connected to the server. Response HTTP code: {}",
+                        response.status()
+                    );
+                    loop {
+                        match socket.read() {
+                            Ok(msg) => {
+                                // println!("message received: {:?}", msg);
+                                if let Err(_) = sender.send(msg.to_string()) {
+                                    break; // 如果发送出错（例如，接收器已被丢弃），则退出循环
+                                }
+                            }
+                            Err(err) => {
+                                println!("wss read err: {:?}", err);
+                                break;
+                            }
+                        }
+                    }
+                }
+                Err(err) => {
+                    println!("wss connect err: {}", err);
+                }
+            }
+        });
+
+        // 将 mpsc 接收器转换为流
+        iced::futures::stream::unfold(receiver, |receiver| async move {
+            receiver
+                .recv()
+                .ok()
+                .map(|msg| (Message::WssRead(Some(msg)), receiver))
+        })
+        .boxed()
+    }
 }

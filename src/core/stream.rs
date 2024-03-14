@@ -3,26 +3,27 @@ use iced::{Alignment, Element, Length};
 
 use crate::message::Message;
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone)]
 pub struct Stream {
     pub title: String,
     pub url: String,
+    pub buf: Vec<String>,
 }
 
 impl Stream {
     pub fn new(title: String, url: String) -> Self {
         Self {
             title,
-            url
+            url,
+            buf: Vec::<String>::default(),
         }
     }
 
     pub fn view(&self) -> Element<Message> {
+        // println!("len of buf: {}", self.buf.len());
         container(
             scrollable(
-                column![
-                    text(&self.url)
-                ]
+                column![text(self.buf.join("\n"))]
                     .spacing(40)
                     .align_items(Alignment::Center)
                     .width(Length::Fill),
