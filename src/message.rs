@@ -4,6 +4,7 @@ use crate::core::{config::Config, node::Node};
 use iced::Theme;
 use serde_yaml::Error;
 use tokio_tungstenite::tungstenite::protocol;
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -11,5 +12,6 @@ pub enum Message {
     AddSource,
     YamlLoaded(Result<Config, Arc<Error>>),
     SourceSelected(Node),
-    WssRead(Option<protocol::Message>),
+    WssRead(Option<String>),
+    Tick(Instant),
 }
