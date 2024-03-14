@@ -19,29 +19,10 @@ use std::sync::Arc;
 use iced::time;
 use std::time::{Duration, Instant};
 
-use tokio::net::TcpStream;
-use tokio_tungstenite::WebSocketStream;
-use tokio_tungstenite::{connect_async, MaybeTlsStream};
 use url::Url;
-use tokio::sync::Mutex;
-
+use tungstenite::connect;
 use iced::futures::stream::BoxStream;
 use std::{sync::mpsc, thread};
-
-
-pub struct TokioExecutor;
-
-impl iced::executor::Executor for TokioExecutor {
-    fn new() -> Result<Self, iced::futures::io::Error>
-    where
-        Self: Sized {
-        Ok(Self)
-    }
-
-    fn spawn(&self, future: impl iced::futures::prelude::Future<Output = ()> + iced::advanced::graphics::futures::MaybeSend + 'static) {
-        tokio::spawn(future);
-    }
-}
 
 #[derive(Debug)]
 pub struct Layout {
@@ -189,22 +170,6 @@ async fn load_yaml() -> Result<Config, Arc<Error>> {
     Ok(conf)
 }
 
-// fn read_wss(wss: Option<Arc<Mutex<WebSocketStream<MaybeTlsStream<TcpStream>>>>>) -> Subscription<Message> {
-    // subscription::channel(
-    //     std::any::TypeId::of::<String>(),
-    //     100,
-    //     |output| async move {
-    //         if let Some(wss) = wss {
-    //             while let Some(msg) = wss.lock().await.next().await{
-    //                 println!("Received a message: {:?}", msg);
-    //                 return output.send(Message::WssRead(Some(msg.unwrap().to_string()))).await;
-    //             }
-    //         }
-    //         output.send(Message::WssRead(None)).await
-    //     }
-    // )
-// }
-
 struct MyRecipe {
     url: String,
 }
@@ -219,7 +184,7 @@ impl iced::advanced::subscription::Recipe for MyRecipe {
     type Output = Message;
 
     fn hash(&self, state: &mut iced::advanced::Hasher) {
-        std::any::TypeId::of::<Self>().hash(state)
+        self.url.hash(state)
     }
 
     fn stream(self: Box<Self>, input: iced::advanced::subscription::EventStream) -> iced::advanced::graphics::futures::BoxStream<Self::Output> {
@@ -228,12 +193,52 @@ impl iced::advanced::subscription::Recipe for MyRecipe {
 
         // 开启新线程发送消息
         std::thread::spawn(move || {
-            loop {
-                if let Err(_) = sender.send(self.url.clone()) {
-                    break; // 如果发送出错（例如，接收器已被丢弃），则退出循环
+
+        let url = Url::parse(self.url.as_str()).unwrap();
+        match connect(url) {
+            Ok(r) => {
+                let (mut socket, response) = r;
+
+                println!(
+                    "Connected to the server. Response HTTP code: {}",
+                    response.status()
+                );
+                // for (ref header, value) in response.headers() {
+                //     println!("{}: {:?}", header, value);
+                // }
+                loop {
+                    match socket.read() {
+                        Ok(msg) => {
+                            println!("message received: {:?}", msg);
+
+                            if let Err(_) = sender.send(msg.to_string()) {
+                                break; // 如果发送出错（例如，接收器已被丢弃），则退出循环
+                            }
+                            // let res = sender.try_send(msg);
+                            // if res.is_err() {
+                            //     println!("push msg err: {:?}", res.unwrap_err())
+                            // }
+                            // Command::perform(wss_msg_read(msg), Message::WssRead);
+                            // Some(msg)
+                        }
+                        Err(err) => {
+                            println!("wss read err: {:?}", err);
+                            // None
+                        }
+                    }
                 }
-                std::thread::sleep(tokio::time::Duration::from_secs(1));
             }
+            Err(err) => {
+                println!("wss connect err: {}", err);
+            }
+        }
+
+            // loop {
+            //     if let Err(_) = sender.send(self.url.clone()) {
+            //         break; // 如果发送出错（例如，接收器已被丢弃），则退出循环
+            //     }
+            //     std::thread::sleep(std::time::Duration::from_secs(1));
+            // }
         });
 
         // 将 mpsc 接收器转换为流

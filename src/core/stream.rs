@@ -1,21 +1,16 @@
 use iced::widget::{column, container, scrollable, text};
 use iced::{Alignment, Element, Length};
-use tokio::net::TcpStream;
 
 use crate::message::Message;
 
-use tokio_tungstenite::WebSocketStream;
-use tokio_tungstenite::{connect_async, MaybeTlsStream};
 use url::Url;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 #[derive(Debug, Default, Clone)]
 pub struct Stream {
     pub title: String,
     pub url: String,
     pub buf: Vec<String>,
-    pub wss: Option<Arc<Mutex<WebSocketStream<MaybeTlsStream<TcpStream>>>>>
 }
 
 impl Stream {
@@ -24,15 +19,12 @@ impl Stream {
             title,
             url,
             buf: Vec::<String>::default(),
-            wss: None,
         }
     }
 
     pub async fn start(&mut self) {
         let url = Url::parse(self.url.as_str()).unwrap();
         println!("connect to: {:?}", url.as_str());
-        let (wss, _) = connect_async(url).await.unwrap();
-        self.wss = Some(Arc::new(Mutex::new(wss)));
         // match connect(url) {
         //     Ok(r) => {
         //         let (mut socket, response) = r;
