@@ -2,12 +2,12 @@ use crate::core::config::Config;
 use crate::core::node::Node;
 use crate::core::stream::Stream;
 use crate::message::{self, Message};
-use iced::{executor, keyboard};
 use iced::futures::{select, StreamExt};
 use iced::theme;
 use iced::time::{self, Duration};
 use iced::widget::Column;
 use iced::widget::{button, column, container, horizontal_space, pick_list, row, scrollable, text};
+use iced::{executor, keyboard};
 use iced::{Alignment, Application, Command, Element, Length, Subscription, Theme};
 use serde_yaml::Error;
 use std::hash::Hash;
@@ -62,7 +62,9 @@ impl Application for Layout {
             }
             Message::SourceSelected(node) => {
                 // println!("selected: {:?}", node);
-                if self.selected_node.is_some() && node.source == self.selected_node.clone().unwrap().source {
+                if self.selected_node.is_some()
+                    && node.source == self.selected_node.clone().unwrap().source
+                {
                     return Command::none();
                 }
                 self.selected_node = Some(node.clone());
@@ -205,12 +207,11 @@ impl iced::advanced::subscription::Recipe for MyRecipe {
                 // println!("message from webscker: {:?}", message);
                 match message {
                     async_tungstenite::tungstenite::Message::Text(msg) => {
-
                         if let Err(err) = sender.send(msg).await {
                             println!("sender send err: {:?}", err);
                             return; // 如果发送出错（例如，接收器已被丢弃），则退出
                         }
-                    },
+                    }
                     _ => {}
                 }
             })
@@ -220,12 +221,8 @@ impl iced::advanced::subscription::Recipe for MyRecipe {
         // 将 mpsc 接收器转换为流
         iced::futures::stream::unfold(receiver, |mut receiver| async move {
             if let Some(received) = receiver.recv().await {
-
                 // println!("receive", received);
-                Some((
-                    Message::WssRead(Some(received)),
-                    receiver,
-                ))
+                Some((Message::WssRead(Some(received)), receiver))
             } else {
                 // println!("no receive");
                 None

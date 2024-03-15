@@ -1,8 +1,8 @@
 use iced::advanced::text::Shaping;
-use iced::widget::{column, container, scrollable, text};
-use iced::{Alignment, Element, Length};
 use iced::widget::scrollable::Direction;
 use iced::widget::scrollable::Properties;
+use iced::widget::{column, container, scrollable, text};
+use iced::{Alignment, Element, Length};
 
 use crate::message::Message;
 
@@ -31,7 +31,9 @@ impl Stream {
                     .align_items(Alignment::Center)
                     .width(Length::Fill),
             )
-            .direction(Direction::Vertical(Properties::default().alignment(iced::widget::scrollable::Alignment::End)))
+            .direction(Direction::Vertical(
+                Properties::default().alignment(iced::widget::scrollable::Alignment::End),
+            ))
             .height(Length::Fill),
         )
         .padding(10)
