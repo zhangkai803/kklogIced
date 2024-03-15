@@ -1,13 +1,12 @@
 use crate::core::config::Config;
 use crate::core::node::Node;
 use crate::core::stream::Stream;
-use crate::message::{self, Message};
-use iced::futures::{select, StreamExt};
+use crate::message::Message;
+use iced::executor;
+use iced::futures::StreamExt;
 use iced::theme;
-use iced::time::{self, Duration};
 use iced::widget::Column;
 use iced::widget::{button, column, container, horizontal_space, pick_list, row, scrollable, text};
-use iced::{executor, keyboard};
 use iced::{Alignment, Application, Command, Element, Length, Subscription, Theme};
 use serde_yaml::Error;
 use std::hash::Hash;
@@ -81,7 +80,6 @@ impl Application for Layout {
                     .push(format!("{}: {:?}", self.stream.buf.len(), msg.to_string()));
             }
             Message::WssRead(None) => {}
-            Message::Tick(ins) => {}
         }
 
         Command::none()
@@ -191,12 +189,12 @@ impl iced::advanced::subscription::Recipe for MyRecipe {
         input: iced::advanced::subscription::EventStream,
     ) -> iced::advanced::graphics::futures::BoxStream<Self::Output> {
         // println!("stream called {:?}", self.url);
-        let (sender, receiver) = tokio::sync::mpsc::channel::<String>(100);
+        let (sender, receiver) = tokio::sync::mpsc::channel::<String>(1000);
 
         // 开启新线程发送消息
         tokio::spawn(async move {
             let url = Url::parse(self.url.as_str()).expect("wss url incorrect");
-            let (mut ws_stream, _) = connect_async(url).await.expect("Failed to connect");
+            let (ws_stream, _) = connect_async(url).await.expect("Failed to connect");
 
             let (_, read) = ws_stream.split();
             read.for_each(|message| async {
