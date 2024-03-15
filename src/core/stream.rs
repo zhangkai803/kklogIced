@@ -1,3 +1,4 @@
+use iced::advanced::text::Shaping;
 use iced::widget::{column, container, scrollable, text};
 use iced::{Alignment, Element, Length};
 
@@ -23,7 +24,7 @@ impl Stream {
         // println!("len of buf: {}", self.buf.len());
         container(
             scrollable(
-                column![text(self.buf.join("\n"))]
+                column![text(self.buf.join("\n")).shaping(Shaping::Advanced)] // Shaping::Advanced for chinese, thanks to Koranir!
                     .spacing(40)
                     .align_items(Alignment::Center)
                     .width(Length::Fill),
