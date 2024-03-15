@@ -1,7 +1,7 @@
 use crate::core::config::Config;
 use crate::core::node::Node;
 use crate::core::stream::Stream;
-use crate::message::Message;
+use crate::message::{self, Message};
 use iced::{executor, keyboard};
 use iced::futures::{select, StreamExt};
 use iced::theme;
@@ -188,7 +188,7 @@ impl iced::advanced::subscription::Recipe for MyRecipe {
         self: Box<Self>,
         input: iced::advanced::subscription::EventStream,
     ) -> iced::advanced::graphics::futures::BoxStream<Self::Output> {
-        println!("stream called {:?}", self.url);
+        // println!("stream called {:?}", self.url);
         let (sender, receiver) = tokio::sync::mpsc::channel::<String>(100);
 
         // 开启新线程发送消息
@@ -196,22 +196,22 @@ impl iced::advanced::subscription::Recipe for MyRecipe {
             let url = Url::parse(self.url.as_str()).expect("wss url incorrect");
             let (mut ws_stream, _) = connect_async(url).await.expect("Failed to connect");
 
-            // select! {
-            //     received = ws_stream.select_next_some() => {
-            //         println!("message received {:?}", received);
-            //         sender.send(received.unwrap().to_string()).await
-            //     }
-            //     // tick = sender.send("".to_string()) => {
-            //     //     Ok(())
-            //     // }
-            // }
-
             let (_, read) = ws_stream.split();
             read.for_each(|message| async {
+                if message.is_err() {
+                    return;
+                }
+                let message = message.unwrap();
                 // println!("message from webscker: {:?}", message);
-                if let Err(err) = sender.send(message.unwrap().to_string()).await {
-                    println!("sender send err: {:?}", err);
-                    return; // 如果发送出错（例如，接收器已被丢弃），则退出
+                match message {
+                    async_tungstenite::tungstenite::Message::Text(msg) => {
+
+                        if let Err(err) = sender.send(msg).await {
+                            println!("sender send err: {:?}", err);
+                            return; // 如果发送出错（例如，接收器已被丢弃），则退出
+                        }
+                    },
+                    _ => {}
                 }
             })
             .await;
@@ -227,7 +227,7 @@ impl iced::advanced::subscription::Recipe for MyRecipe {
                     receiver,
                 ))
             } else {
-                println!("no receive");
+                // println!("no receive");
                 None
             }
         })
