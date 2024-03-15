@@ -12,7 +12,8 @@ use serde_yaml::Error;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use tungstenite::connect;
+use async_tungstenite::async_std::connect_async;
+
 use url::Url;
 
 #[derive(Debug)]
@@ -84,10 +85,12 @@ impl Application for Layout {
         // let tick = time::every(Duration::from_millis(1000)).map(Message::Tick);
         // let read = read_wss(self.stream.wss);
 
-        let my = Subscription::from_recipe(MyRecipe::new(self.stream.url.clone()));
-        let s_vec = vec![my];
+        let mut s_vec = vec![];
+        if self.stream.url.len() > 0 {
+            let my = Subscription::from_recipe(MyRecipe::new(self.stream.url.clone()));
+            s_vec.push(my);
+        }
         Subscription::batch(s_vec)
-
         // keyboard::on_key_press(|key, _modifiers| match key {
         //     _ => {
         //         // println!("{:?}", key);
@@ -181,46 +184,29 @@ impl iced::advanced::subscription::Recipe for MyRecipe {
         input: iced::advanced::subscription::EventStream,
     ) -> iced::advanced::graphics::futures::BoxStream<Self::Output> {
         println!("stream called {:?}", self.url);
-        let (sender, receiver) = std::sync::mpsc::channel::<String>();
+        let (sender, receiver) = tokio::sync::mpsc::channel::<String>(100);
 
         // 开启新线程发送消息
-        std::thread::spawn(move || {
+        tokio::spawn(async move {
             let url = Url::parse(self.url.as_str()).expect("wss url incorrect");
-            match connect(url) {
-                Ok(r) => {
-                    let (mut socket, response) = r;
+            let (ws_stream, _) = connect_async(url).await.expect("Failed to connect");
 
-                    println!(
-                        "Connected to the server. Response HTTP code: {}",
-                        response.status()
-                    );
-                    loop {
-                        match socket.read() {
-                            Ok(msg) => {
-                                // println!("message received: {:?}", msg);
-                                if let Err(_) = sender.send(msg.to_string()) {
-                                    break; // 如果发送出错（例如，接收器已被丢弃），则退出循环
-                                }
-                            }
-                            Err(err) => {
-                                println!("wss read err: {:?}", err);
-                                break;
-                            }
-                        }
-                    }
+            let (_, read) = ws_stream.split();
+            read.for_each(|message| async {
+                println!("message from webscker: {:?}", message);
+                if let Err(_) = sender.send(message.unwrap().to_string()).await {
+                    return; // 如果发送出错（例如，接收器已被丢弃），则退出
                 }
-                Err(err) => {
-                    println!("wss connect err: {}", err);
-                }
-            }
+            })
+            .await;
         });
 
         // 将 mpsc 接收器转换为流
-        iced::futures::stream::unfold(receiver, |receiver| async move {
-            receiver
-                .recv()
-                .ok()
-                .map(|msg| (Message::WssRead(Some(msg)), receiver))
+        iced::futures::stream::unfold(receiver, |mut receiver| async move {
+            Some((
+                Message::WssRead(Some(receiver.recv().await.unwrap_or_default())),
+                receiver,
+            ))
         })
         .boxed()
     }
