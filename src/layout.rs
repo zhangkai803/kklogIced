@@ -47,7 +47,6 @@ impl Application for Layout {
     }
 
     fn update(&mut self, message: Self::Message) -> Command<Message> {
-        // println!("update called");
         match message {
             Message::ThemeSelected(theme) => {
                 self.theme = theme;
@@ -60,7 +59,6 @@ impl Application for Layout {
                 println!("load yaml err: {:?}", err)
             }
             Message::SourceSelected(node) => {
-                // println!("selected: {:?}", node);
                 if self.selected_node.is_some()
                     && node.source == self.selected_node.clone().unwrap().source
                 {
@@ -71,25 +69,18 @@ impl Application for Layout {
                     node.source.clone(),
                     node.url("dev", self.config.user.token.as_str()).clone(),
                 );
-                // return Command::perform(wss(node.url("dev", self.config.user.token.as_str())), Message::WssRead);
             }
-            Message::WssRead(Some(msg)) => {
-                // println!("WssRead: {:?}", msg);
+            Message::WssRead(msg) => {
                 self.stream
                     .buf
                     .push(format!("{}: {:?}", self.stream.buf.len(), msg.to_string()));
             }
-            Message::WssRead(None) => {}
         }
 
         Command::none()
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        // println!("subscription called");
-        // let tick = time::every(Duration::from_millis(1000)).map(Message::Tick);
-        // let read = read_wss(self.stream.wss);
-
         let mut s_vec = vec![];
         if self.stream.url.len() > 0 {
             let my = Subscription::from_recipe(MyRecipe::new(self.stream.url.clone()));
@@ -188,7 +179,6 @@ impl iced::advanced::subscription::Recipe for MyRecipe {
         self: Box<Self>,
         input: iced::advanced::subscription::EventStream,
     ) -> iced::advanced::graphics::futures::BoxStream<Self::Output> {
-        // println!("stream called {:?}", self.url);
         let (sender, receiver) = tokio::sync::mpsc::channel::<String>(1000);
 
         // 开启新线程发送消息
@@ -196,33 +186,34 @@ impl iced::advanced::subscription::Recipe for MyRecipe {
             let url = Url::parse(self.url.as_str()).expect("wss url incorrect");
             let (ws_stream, _) = connect_async(url).await.expect("Failed to connect");
 
-            let (_, read) = ws_stream.split();
-            read.for_each(|message| async {
-                if message.is_err() {
-                    return;
+            let (_, mut read) = ws_stream.split();
+
+            loop {
+                let message = read.next().await;
+                if message.is_none() {
+                    continue;
                 }
                 let message = message.unwrap();
-                // println!("message from webscker: {:?}", message);
+                if message.is_err() {
+                    continue;
+                }
+                let message = message.unwrap();
                 match message {
                     async_tungstenite::tungstenite::Message::Text(msg) => {
-                        if let Err(err) = sender.send(msg).await {
-                            println!("sender send err: {:?}", err);
-                            return; // 如果发送出错（例如，接收器已被丢弃），则退出
+                        if let Err(_) = sender.send(msg).await {
+                            break; // 如果发送出错（例如，接收器已被丢弃），则退出
                         }
                     }
                     _ => {}
                 }
-            })
-            .await;
+            }
         });
 
         // 将 mpsc 接收器转换为流
         iced::futures::stream::unfold(receiver, |mut receiver| async move {
             if let Some(received) = receiver.recv().await {
-                // println!("receive", received);
-                Some((Message::WssRead(Some(received)), receiver))
+                Some((Message::WssRead(received), receiver))
             } else {
-                // println!("no receive");
                 None
             }
         })

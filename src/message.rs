@@ -9,5 +9,5 @@ pub enum Message {
     AddSource,
     YamlLoaded(Result<Config, Arc<Error>>),
     SourceSelected(Node),
-    WssRead(Option<String>),
+    WssRead(String),
 }
