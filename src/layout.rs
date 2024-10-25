@@ -201,7 +201,7 @@ impl iced::advanced::subscription::Recipe for MyRecipe {
                 match message {
                     async_tungstenite::tungstenite::Message::Text(msg) => {
                         if let Err(_) = sender.send(msg).await {
-                            break; // 如果发送出错（例如，接收器已被丢弃），则退出
+                            return; // 如果发送出错（例如，接收器已被丢弃），则退出
                         }
                     }
                     _ => {}
