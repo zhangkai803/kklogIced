@@ -15,6 +15,8 @@ pub struct Stream {
     pub url: String,
     pub buf: Vec<String>,
     pub connection_id: u32,
+    namespace: String,
+    pod: Pod,
 }
 
 impl Stream {
@@ -28,7 +30,7 @@ impl Stream {
     ) -> Self {
         let node = Node {
             env,
-            namespace,
+            namespace: namespace.clone(),
             deployment,
             pod: pod.name.clone(),
             r#type: pod.r#type.clone(),
@@ -38,6 +40,8 @@ impl Stream {
             url: node.url(&token),
             buf: Vec::<String>::default(),
             connection_id: rand::random::<u32>(),
+            namespace,
+            pod,
         }
     }
 
@@ -47,10 +51,12 @@ impl Stream {
                 Column::with_children(
                     self.buf
                         .iter()
-                        .map(|s| text(s).shaping(Shaping::Advanced).into()),
+                        .map(|s| text(
+                            "[".to_owned() + &self.namespace.clone() + "]" + &self.pod.to_string() + " " + s.split_once(":").map(|(_, second)| second).unwrap()
+                        ).shaping(Shaping::Advanced).into()),
                 )
-                .spacing(40)
-                .align_items(Alignment::Center)
+                .spacing(5)
+                .align_items(Alignment::Start)
                 .width(Length::Fill),
             )
             .direction(Direction::Vertical(
@@ -69,6 +75,8 @@ impl Default for Stream {
             url: String::default(),
             buf: Vec::default(),
             connection_id: 0,
+            namespace: String::default(),
+            pod: Pod::default(),
         }
     }
 }

@@ -112,6 +112,46 @@ impl Application for Layout {
                 self.selected_pod = Some(pod);
                 let _ = self.update_stream(self.config.user.token.clone());
             }
+            Message::CloneWindow => {
+                // 调用系统命令克隆窗口 TOTEST
+                if cfg!(target_os = "windows") {
+                    // Windows
+                    {
+                        tokio::spawn(async {
+                            std::process::Command::new("cmd")
+                                .args(&["/c", "start", "kklogIced.exe"]) // 替换为你的程序名
+                                .spawn()
+                                .unwrap();
+                        });
+                    }
+                } else if cfg!(target_os = "macos") {
+                    // macOS TESTED
+                    {
+                        tokio::spawn(async {
+                            std::process::Command::new("sh")
+                                .args(&["-c", "kklogIced &"]) // 替换为你的程序名
+                                .spawn()
+                                .unwrap();
+                        });
+                        // tokio::spawn(async {
+                        //     std::process::Command::new("open")
+                        //         .args(&["-n", "/Applications/kklogIced.app"]) // 替换为你的程序路径
+                        //         .spawn()
+                        //         .unwrap();
+                        // });
+                    }
+                } else {
+                    // Linux TOTEST
+                    {
+                        tokio::spawn(async {
+                            std::process::Command::new("sh")
+                                .args(&["-c", "kklogIced &"]) // 替换为你的程序名
+                                .spawn()
+                                .unwrap();
+                        });
+                    }
+                }
+            }
         }
 
         Command::none()
@@ -144,6 +184,9 @@ impl Application for Layout {
             text(self.stream.url.as_str()),
             horizontal_space(),
             pick_list(Theme::ALL, Some(&self.theme), Message::ThemeSelected),
+            button("Clone Window") // 新增
+                .padding([5, 10])
+                .on_press(Message::CloneWindow),
         ]
         .spacing(20)
         .align_items(Alignment::Center);
