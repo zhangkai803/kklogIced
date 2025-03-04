@@ -24,6 +24,7 @@ pub struct Layout {
     pub selected_deployment: Option<String>,
     pub selected_pod: Option<Pod>,
     pub available_pods: Vec<Pod>,       // 新增
+    pub cur_pod: Option<Pod>,
 }
 
 impl Application for Layout {
@@ -43,6 +44,7 @@ impl Application for Layout {
                 selected_deployment: None,
                 selected_pod: None,
                 available_pods: Vec::new(),      // 新增
+                cur_pod: None,
             },
             Command::perform(load_yaml(), Message::YamlLoaded),
         )
@@ -93,9 +95,7 @@ impl Application for Layout {
             Message::NamespaceSelected(namespace) => {
                 self.selected_namespace = Some(namespace);
 
-                let _ = self.update_stream(
-                    self.config.user.token.clone(),
-                );
+                let _ = self.update_stream(self.config.user.token.clone());
             }
             Message::DeploymentSelected(deployment) => {
                 self.selected_deployment = Some(deployment.clone());
@@ -106,17 +106,11 @@ impl Application for Layout {
                     .cloned()
                     .unwrap_or_default();
                 self.selected_pod = None;
-
-                let _ = self.update_stream(
-                    self.config.user.token.clone(),
-                );
+                let _ = self.update_stream(self.config.user.token.clone());
             }
             Message::PodSelected(pod) => {
                 self.selected_pod = Some(pod);
-
-                let _ = self.update_stream(
-                    self.config.user.token.clone(),
-                );
+                let _ = self.update_stream(self.config.user.token.clone());
             }
         }
 
@@ -238,9 +232,16 @@ impl Layout {
             &self.selected_deployment,
             &self.selected_pod,
         ) {
+            if self.cur_pod.is_some() && self.selected_pod.clone().unwrap() == self.cur_pod.clone().unwrap() {
+                println!("same pod, ignore");
+                return Command::none();
+            }
+            self.cur_pod = self.selected_pod.clone();
+
             // 如果有当前连接，先发送关闭命令
             let connection_id = self.stream.connection_id;
             let close_command = if connection_id != 0 {
+                println!("close connection: {}", connection_id);
                 Command::perform(async move { connection_id }, Message::CloseConnection)
             } else {
                 Command::none()
