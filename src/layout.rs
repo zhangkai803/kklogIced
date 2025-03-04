@@ -59,7 +59,6 @@ impl Application for Layout {
             Message::ThemeSelected(theme) => {
                 self.theme = theme;
             }
-            Message::AddSource => {}
             Message::YamlLoaded(Ok(config)) => {
                 self.config = config;
             }
@@ -177,11 +176,19 @@ impl Application for Layout {
 
     fn view(&self) -> Element<Message> {
         let header = row![
-            button("+ Add")
-                .padding([5, 10])
-                .on_press(Message::AddSource),
             horizontal_space(),
-            text(self.stream.url.as_str()),
+            text(
+                if self.stream.pod.name.len() == 0 {
+                    "KKlog - Iced".to_string()
+                } else {
+                    format!(
+                        "KKlog - Iced - [{}]{}",
+                        self.stream.namespace,
+                        self.stream.pod.to_string()
+                    )
+                }
+                // self.stream.pod.to_string()
+            ),
             horizontal_space(),
             pick_list(Theme::ALL, Some(&self.theme), Message::ThemeSelected),
             button("Clone Window") // 新增

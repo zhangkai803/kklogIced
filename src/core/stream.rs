@@ -15,8 +15,8 @@ pub struct Stream {
     pub url: String,
     pub buf: Vec<String>,
     pub connection_id: u32,
-    namespace: String,
-    pod: Pod,
+    pub namespace: String,
+    pub pod: Pod,
 }
 
 impl Stream {
