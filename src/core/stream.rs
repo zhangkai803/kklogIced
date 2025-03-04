@@ -7,6 +7,7 @@ use iced::{Alignment, Element, Length};
 
 use crate::message::Message;
 
+use super::config::Pod;
 use super::node::Node;
 
 #[derive(Debug)]
@@ -22,16 +23,15 @@ impl Stream {
         env: String,
         namespace: String,
         deployment: String,
-        r#type: String,
-        pod: String,
+        pod: Pod,
         token: String,
     ) -> Self {
         let node = Node {
             env,
             namespace,
             deployment,
-            pod,
-            r#type,
+            pod: pod.name.clone(),
+            r#type: pod.r#type.clone(),
         };
 
         Self {

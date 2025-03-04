@@ -1,4 +1,4 @@
-use crate::core::config::Config;
+use crate::core::config::{Config, Pod};
 use crate::core::stream::Stream;
 use crate::message::Message;
 use iced::executor;
@@ -22,8 +22,8 @@ pub struct Layout {
     pub selected_env: Option<String>,
     pub selected_namespace: Option<String>,
     pub selected_deployment: Option<String>,
-    pub selected_pod: Option<String>,
-    pub selected_type: Option<String>,
+    pub selected_pod: Option<Pod>,
+    pub available_pods: Vec<Pod>,       // 新增
 }
 
 impl Application for Layout {
@@ -42,7 +42,7 @@ impl Application for Layout {
                 selected_namespace: None,
                 selected_deployment: None,
                 selected_pod: None,
-                selected_type: None,
+                available_pods: Vec::new(),      // 新增
             },
             Command::perform(load_yaml(), Message::YamlLoaded),
         )
@@ -75,11 +75,20 @@ impl Application for Layout {
             }
 
             Message::EnvSelected(env) => {
-                self.selected_env = Some(env);
+                self.selected_env = Some(env.clone());
+                // self.available_namespaces = self
+                //     .config
+                //     .namespaces
+                //     .get(env)
+                //     .cloned()
+                //     .unwrap_or_default();
+                // self.selected_namespace = None;
+                // self.available_deployments = Vec::new();
+                // self.selected_deployment = None;
+                // self.available_pods = Vec::new();
+                // self.selected_pod = None;
 
-                let _ = self.update_stream(
-                    self.config.user.token.clone(),
-                );
+                let _ = self.update_stream(self.config.user.token.clone());
             }
             Message::NamespaceSelected(namespace) => {
                 self.selected_namespace = Some(namespace);
@@ -89,7 +98,14 @@ impl Application for Layout {
                 );
             }
             Message::DeploymentSelected(deployment) => {
-                self.selected_deployment = Some(deployment);
+                self.selected_deployment = Some(deployment.clone());
+                self.available_pods = self
+                    .config
+                    .pods
+                    .get(&deployment)
+                    .cloned()
+                    .unwrap_or_default();
+                self.selected_pod = None;
 
                 let _ = self.update_stream(
                     self.config.user.token.clone(),
@@ -97,13 +113,6 @@ impl Application for Layout {
             }
             Message::PodSelected(pod) => {
                 self.selected_pod = Some(pod);
-
-                let _ = self.update_stream(
-                    self.config.user.token.clone(),
-                );
-            }
-            Message::TypeSelected(r#type) => {
-                self.selected_type = Some(r#type);
 
                 let _ = self.update_stream(
                     self.config.user.token.clone(),
@@ -164,15 +173,9 @@ impl Application for Layout {
         );
 
         let pod_list = pick_list(
-            self.config.pods.clone(),
+            self.available_pods.clone(), // 修改
             self.selected_pod.clone(),
             Message::PodSelected,
-        );
-
-        let type_list = pick_list(
-            self.config.types.clone(),
-            self.selected_type.clone(),
-            Message::TypeSelected,
         );
 
         let selector_row = row![
@@ -184,8 +187,6 @@ impl Application for Layout {
             deployment_list,
             text("Pod:"),
             pod_list,
-            text("Type:"),
-            type_list,
         ]
         .spacing(10)
         .align_items(Alignment::Center);
@@ -231,12 +232,11 @@ impl Layout {
     // }
 
     fn update_stream(&mut self, token: String) -> Command<Message> {
-        if let (Some(env), Some(namespace), Some(deployment), Some(pod), Some(r#type)) = (
+        if let (Some(env), Some(namespace), Some(deployment), Some(pod)) = (
             &self.selected_env,
             &self.selected_namespace,
             &self.selected_deployment,
             &self.selected_pod,
-            &self.selected_type,
         ) {
             // 如果有当前连接，先发送关闭命令
             let connection_id = self.stream.connection_id;
@@ -250,7 +250,6 @@ impl Layout {
                 env.clone(),
                 namespace.clone(),
                 deployment.clone(),
-                r#type.clone(),
                 pod.clone(),
                 token,
             );
