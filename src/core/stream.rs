@@ -7,19 +7,37 @@ use iced::{Alignment, Element, Length};
 
 use crate::message::Message;
 
-#[derive(Debug, Default)]
+use super::node::Node;
+
+#[derive(Debug)]
 pub struct Stream {
-    pub title: String,
     pub url: String,
     pub buf: Vec<String>,
+    pub connection_id: u32,
 }
 
 impl Stream {
-    pub fn new(title: String, url: String) -> Self {
+
+    pub fn from_selected(
+        env: String,
+        namespace: String,
+        deployment: String,
+        r#type: String,
+        pod: String,
+        token: String,
+    ) -> Self {
+        let node = Node {
+            env,
+            namespace,
+            deployment,
+            pod,
+            r#type,
+        };
+
         Self {
-            title,
-            url,
+            url: node.url(&token),
             buf: Vec::<String>::default(),
+            connection_id: rand::random::<u32>(),
         }
     }
 
@@ -42,5 +60,15 @@ impl Stream {
         )
         .padding(10)
         .into()
+    }
+}
+
+impl Default for Stream {
+    fn default() -> Self {
+        Self {
+            url: String::default(),
+            buf: Vec::default(),
+            connection_id: 0,
+        }
     }
 }

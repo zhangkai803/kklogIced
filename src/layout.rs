@@ -1,19 +1,17 @@
 use crate::core::config::Config;
-use crate::core::node::Node;
 use crate::core::stream::Stream;
 use crate::message::Message;
 use iced::executor;
 use iced::futures::StreamExt;
-use iced::theme;
-use iced::widget::Column;
-use iced::widget::{button, column, container, horizontal_space, pick_list, row, scrollable, text};
+use iced::widget::{button, column, container, horizontal_space, pick_list, row, text};
 use iced::{Alignment, Application, Command, Element, Length, Subscription, Theme};
 use serde_yaml::Error;
 use std::hash::Hash;
 use std::sync::Arc;
 
 use async_tungstenite::tokio::connect_async;
-
+use futures_util::SinkExt; // 引入 SinkExt
+use home::home_dir; // 引入 home crate
 use url::Url;
 
 #[derive(Debug)]
@@ -21,7 +19,11 @@ pub struct Layout {
     pub stream: Stream,
     pub theme: Theme,
     pub config: Config,
-    pub selected_node: Option<Node>,
+    pub selected_env: Option<String>,
+    pub selected_namespace: Option<String>,
+    pub selected_deployment: Option<String>,
+    pub selected_pod: Option<String>,
+    pub selected_type: Option<String>,
 }
 
 impl Application for Layout {
@@ -36,7 +38,11 @@ impl Application for Layout {
                 stream: Stream::default(),
                 theme: Theme::Light,
                 config: Config::default(),
-                selected_node: None,
+                selected_env: None,
+                selected_namespace: None,
+                selected_deployment: None,
+                selected_pod: None,
+                selected_type: None,
             },
             Command::perform(load_yaml(), Message::YamlLoaded),
         )
@@ -58,22 +64,50 @@ impl Application for Layout {
             Message::YamlLoaded(Err(err)) => {
                 println!("load yaml err: {:?}", err)
             }
-            Message::SourceSelected(node) => {
-                if self.selected_node.is_some()
-                    && node.source == self.selected_node.clone().unwrap().source
-                {
-                    return Command::none();
-                }
-                self.selected_node = Some(node.clone());
-                self.stream = Stream::new(
-                    node.source.clone(),
-                    node.url("dev", self.config.user.token.as_str()).clone(),
-                );
+            Message::CloseConnection(_) => {
+                // 处理关闭连接的消息，这里不需要做什么，
+                // 因为connection_id不匹配的连接会自动关闭
             }
             Message::WssRead(msg) => {
                 self.stream
                     .buf
                     .push(format!("{}: {:?}", self.stream.buf.len(), msg.to_string()));
+            }
+
+            Message::EnvSelected(env) => {
+                self.selected_env = Some(env);
+
+                let _ = self.update_stream(
+                    self.config.user.token.clone(),
+                );
+            }
+            Message::NamespaceSelected(namespace) => {
+                self.selected_namespace = Some(namespace);
+
+                let _ = self.update_stream(
+                    self.config.user.token.clone(),
+                );
+            }
+            Message::DeploymentSelected(deployment) => {
+                self.selected_deployment = Some(deployment);
+
+                let _ = self.update_stream(
+                    self.config.user.token.clone(),
+                );
+            }
+            Message::PodSelected(pod) => {
+                self.selected_pod = Some(pod);
+
+                let _ = self.update_stream(
+                    self.config.user.token.clone(),
+                );
+            }
+            Message::TypeSelected(r#type) => {
+                self.selected_type = Some(r#type);
+
+                let _ = self.update_stream(
+                    self.config.user.token.clone(),
+                );
             }
         }
 
@@ -83,7 +117,10 @@ impl Application for Layout {
     fn subscription(&self) -> Subscription<Message> {
         let mut s_vec = vec![];
         if self.stream.url.len() > 0 {
-            let my = Subscription::from_recipe(MyRecipe::new(self.stream.url.clone()));
+            let my = Subscription::from_recipe(MyRecipe::new(
+                self.stream.url.clone(),
+                self.stream.connection_id,
+            ));
             s_vec.push(my);
         }
         Subscription::batch(s_vec)
@@ -101,26 +138,77 @@ impl Application for Layout {
                 .padding([5, 10])
                 .on_press(Message::AddSource),
             horizontal_space(),
-            text(self.stream.title.as_str()),
+            text(self.stream.url.as_str()),
             horizontal_space(),
             pick_list(Theme::ALL, Some(&self.theme), Message::ThemeSelected),
         ]
         .spacing(20)
         .align_items(Alignment::Center);
 
-        let stream = container(row![self.sidebar(), self.stream.view()])
-            .style(|theme: &Theme| {
-                let palette = theme.extended_palette();
+        let env_list = pick_list(
+            self.config.envs.clone(),
+            self.selected_env.clone(),
+            Message::EnvSelected,
+        );
 
-                container::Appearance::default().with_border(palette.background.strong.color, 4.0)
-            })
-            .padding(4)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .center_x()
-            .center_y();
+        let namespace_list = pick_list(
+            self.config.namespaces.clone(),
+            self.selected_namespace.clone(),
+            Message::NamespaceSelected,
+        );
 
-        column![header, stream].spacing(10).padding(20).into()
+        let deployment_list = pick_list(
+            self.config.deployments.clone(),
+            self.selected_deployment.clone(),
+            Message::DeploymentSelected,
+        );
+
+        let pod_list = pick_list(
+            self.config.pods.clone(),
+            self.selected_pod.clone(),
+            Message::PodSelected,
+        );
+
+        let type_list = pick_list(
+            self.config.types.clone(),
+            self.selected_type.clone(),
+            Message::TypeSelected,
+        );
+
+        let selector_row = row![
+            text("Env:"),
+            env_list,
+            text("Namespace:"),
+            namespace_list,
+            text("Project:"),
+            deployment_list,
+            text("Pod:"),
+            pod_list,
+            text("Type:"),
+            type_list,
+        ]
+        .spacing(10)
+        .align_items(Alignment::Center);
+
+        let stream = container(row![
+            // self.sidebar(),
+            self.stream.view()
+        ])
+        .style(|theme: &Theme| {
+            let palette = theme.extended_palette();
+
+            container::Appearance::default().with_border(palette.background.strong.color, 4.0)
+        })
+        .padding(4)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .center_x()
+        .center_y();
+
+        column![header, selector_row, stream]
+            .spacing(10)
+            .padding(20)
+            .into()
     }
 
     fn theme(&self) -> Theme {
@@ -129,22 +217,52 @@ impl Application for Layout {
 }
 
 impl Layout {
-    fn sidebar(&self) -> Element<Message> {
-        container(scrollable(
-            Column::with_children(self.config.envs.iter().map(Node::view))
-                .spacing(40)
-                .padding(10)
-                .width(200)
-                .align_items(Alignment::Start),
-        ))
-        .style(theme::Container::Box)
-        .height(Length::Fill)
-        .into()
+    // fn sidebar(&self) -> Element<Message> {
+    //     container(scrollable(
+    //         Column::with_children(self.config.envs.iter().map(Node::view))
+    //             .spacing(40)
+    //             .padding(10)
+    //             .width(200)
+    //             .align_items(Alignment::Start),
+    //     ))
+    //     .style(theme::Container::Box)
+    //     .height(Length::Fill)
+    //     .into()
+    // }
+
+    fn update_stream(&mut self, token: String) -> Command<Message> {
+        if let (Some(env), Some(namespace), Some(deployment), Some(pod), Some(r#type)) = (
+            &self.selected_env,
+            &self.selected_namespace,
+            &self.selected_deployment,
+            &self.selected_pod,
+            &self.selected_type,
+        ) {
+            // 如果有当前连接，先发送关闭命令
+            let connection_id = self.stream.connection_id;
+            let close_command = if connection_id != 0 {
+                Command::perform(async move { connection_id }, Message::CloseConnection)
+            } else {
+                Command::none()
+            };
+
+            self.stream = Stream::from_selected(
+                env.clone(),
+                namespace.clone(),
+                deployment.clone(),
+                r#type.clone(),
+                pod.clone(),
+                token,
+            );
+            Command::batch(vec![close_command, Command::none()])
+        } else {
+            Command::none()
+        }
     }
 }
 
 async fn read_yaml() -> Option<String> {
-    if let Some(home) = std::env::home_dir() {
+    if let Some(home) = home_dir() {
         return Some(
             std::fs::read_to_string(format!("{}/.kkconf.yaml", home.display()))
                 .expect("read yaml err"),
@@ -155,16 +273,18 @@ async fn read_yaml() -> Option<String> {
 
 async fn load_yaml() -> Result<Config, Arc<Error>> {
     let conf: Config = serde_yaml::from_str(read_yaml().await.unwrap().as_str())?;
+    println!("{:?}", conf);
     Ok(conf)
 }
 
 struct MyRecipe {
     url: String,
+    connection_id: u32,
 }
 
 impl MyRecipe {
-    fn new(url: String) -> Self {
-        Self { url }
+    fn new(url: String, connection_id: u32) -> Self {
+        Self { url, connection_id }
     }
 }
 
@@ -177,44 +297,40 @@ impl iced::advanced::subscription::Recipe for MyRecipe {
 
     fn stream(
         self: Box<Self>,
-        input: iced::advanced::subscription::EventStream,
+        _input: iced::advanced::subscription::EventStream,
     ) -> iced::advanced::graphics::futures::BoxStream<Self::Output> {
+        let connection_id = self.connection_id;
         let (sender, receiver) = tokio::sync::mpsc::channel::<String>(1000);
 
-        // 开启新线程发送消息
         tokio::spawn(async move {
             let url = Url::parse(self.url.as_str()).expect("wss url incorrect");
             let (ws_stream, _) = connect_async(url).await.expect("Failed to connect");
-
-            let (_, mut read) = ws_stream.split();
+            let (mut write, mut read) = ws_stream.split();
 
             loop {
-                let message = read.next().await;
-                if message.is_none() {
-                    continue;
-                }
-                let message = message.unwrap();
-                if message.is_err() {
-                    continue;
-                }
-                let message = message.unwrap();
-                match message {
-                    async_tungstenite::tungstenite::Message::Text(msg) => {
-                        if let Err(_) = sender.send(msg).await {
-                            return; // 如果发送出错（例如，接收器已被丢弃），则退出
+                tokio::select! {
+                    message = read.next() => {
+                        match message {
+                            Some(Ok(async_tungstenite::tungstenite::Message::Text(msg))) => {
+                                if let Err(_) = sender.send(msg).await {
+                                    break;
+                                }
+                            }
+                            _ => continue,
                         }
                     }
-                    _ => {}
                 }
             }
+
+            // 关闭连接
+            let _ = write.close().await;
         });
 
-        // 将 mpsc 接收器转换为流
-        iced::futures::stream::unfold(receiver, |mut receiver| async move {
+        iced::futures::stream::unfold((receiver, connection_id), |(mut receiver, id)| async move {
             if let Some(received) = receiver.recv().await {
-                Some((Message::WssRead(received), receiver))
+                Some((Message::WssRead(received), (receiver, id)))
             } else {
-                None
+                Some((Message::CloseConnection(id), (receiver, id)))
             }
         })
         .boxed()

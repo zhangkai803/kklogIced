@@ -1,13 +1,13 @@
-use iced::Application;
-use iced::Settings;
+use iced::{Application, Settings};
 
 mod components;
 mod core;
 mod layout;
 mod message;
 
-use layout::Layout;
-
 pub fn main() -> iced::Result {
-    Layout::run(Settings::default())
+    layout::Layout::run(Settings {
+        antialiasing: true,
+        ..Settings::default()
+    })
 }

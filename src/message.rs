@@ -1,4 +1,4 @@
-use crate::core::{config::Config, node::Node};
+use crate::core::config::Config;
 use iced::Theme;
 use serde_yaml::Error;
 use std::sync::Arc;
@@ -8,6 +8,11 @@ pub enum Message {
     ThemeSelected(Theme),
     AddSource,
     YamlLoaded(Result<Config, Arc<Error>>),
-    SourceSelected(Node),
     WssRead(String),
+    CloseConnection(u32),      // 新增：关闭指定ID的连接
+    EnvSelected(String),       // 新增
+    NamespaceSelected(String), // 新增
+    DeploymentSelected(String),   // 新增
+    PodSelected(String),       // 新增
+    TypeSelected(String),
 }
