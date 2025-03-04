@@ -20,7 +20,6 @@ pub struct Stream {
 }
 
 impl Stream {
-
     pub fn from_selected(
         env: String,
         namespace: String,
@@ -48,13 +47,18 @@ impl Stream {
     pub fn view(&self) -> Element<Message> {
         container(
             scrollable(
-                Column::with_children(
-                    self.buf
-                        .iter()
-                        .map(|s| text(
-                            "[".to_owned() + &self.namespace.clone() + "]" + &self.pod.to_string() + " " + s.split_once(":").map(|(_, second)| second).unwrap()
-                        ).shaping(Shaping::Advanced).into()),
-                )
+                Column::with_children(self.buf.iter().map(|s| {
+                    text(
+                        "[".to_owned()
+                            + &self.namespace.clone()
+                            + "]"
+                            + &self.pod.to_string()
+                            + " "
+                            + s.split_once(":").map(|(_, second)| second).unwrap(),
+                    )
+                    .shaping(Shaping::Advanced)
+                    .into()
+                }))
                 .spacing(5)
                 .align_items(Alignment::Start)
                 .width(Length::Fill),

@@ -1,6 +1,7 @@
 use crate::core::config::{Config, Pod};
 use crate::core::stream::Stream;
 use crate::message::Message;
+use crate::style::{ButtonStyle, ContainerStyle}; // 引入自定义样式
 use iced::executor;
 use iced::futures::StreamExt;
 use iced::widget::{button, column, container, horizontal_space, pick_list, row, text};
@@ -23,7 +24,7 @@ pub struct Layout {
     pub selected_namespace: Option<String>,
     pub selected_deployment: Option<String>,
     pub selected_pod: Option<Pod>,
-    pub available_pods: Vec<Pod>,       // 新增
+    pub available_pods: Vec<Pod>, // 新增
     pub cur_pod: Option<Pod>,
 }
 
@@ -43,7 +44,7 @@ impl Application for Layout {
                 selected_namespace: None,
                 selected_deployment: None,
                 selected_pod: None,
-                available_pods: Vec::new(),      // 新增
+                available_pods: Vec::new(), // 新增
                 cur_pod: None,
             },
             Command::perform(load_yaml(), Message::YamlLoaded),
@@ -177,21 +178,19 @@ impl Application for Layout {
     fn view(&self) -> Element<Message> {
         let header = row![
             horizontal_space(),
-            text(
-                if self.stream.pod.name.len() == 0 {
-                    "KKlog - Iced".to_string()
-                } else {
-                    format!(
-                        "KKlog - Iced - [{}]{}",
-                        self.stream.namespace,
-                        self.stream.pod.to_string()
-                    )
-                }
-                // self.stream.pod.to_string()
-            ),
+            text(if self.stream.pod.name.len() == 0 {
+                "KKlog - Iced".to_string()
+            } else {
+                format!(
+                    "KKlog - Iced - [{}]{}",
+                    self.stream.namespace,
+                    self.stream.pod.to_string()
+                )
+            }),
             horizontal_space(),
             pick_list(Theme::ALL, Some(&self.theme), Message::ThemeSelected),
             button("Clone Window") // 新增
+                .style(ButtonStyle::Primary) // 应用自定义样式
                 .padding([5, 10])
                 .on_press(Message::CloneWindow),
         ]
@@ -239,11 +238,7 @@ impl Application for Layout {
             // self.sidebar(),
             self.stream.view()
         ])
-        .style(|theme: &Theme| {
-            let palette = theme.extended_palette();
-
-            container::Appearance::default().with_border(palette.background.strong.color, 4.0)
-        })
+        .style(ContainerStyle::Bordered) // 应用自定义样式
         .padding(4)
         .width(Length::Fill)
         .height(Length::Fill)
@@ -282,7 +277,9 @@ impl Layout {
             &self.selected_deployment,
             &self.selected_pod,
         ) {
-            if self.cur_pod.is_some() && self.selected_pod.clone().unwrap() == self.cur_pod.clone().unwrap() {
+            if self.cur_pod.is_some()
+                && self.selected_pod.clone().unwrap() == self.cur_pod.clone().unwrap()
+            {
                 println!("same pod, ignore");
                 return Command::none();
             }

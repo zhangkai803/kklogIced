@@ -3,7 +3,6 @@ use std::collections::HashMap;
 
 use crate::core::user::User;
 
-
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Pod {
     pub name: String,
@@ -26,7 +25,7 @@ impl PartialEq for Pod {
 pub struct Config {
     pub user: User,
     pub envs: Vec<String>,
-    pub namespaces: Vec<String>, // 修改
-    pub deployments: Vec<String>, // 修改
-    pub pods: HashMap<String, Vec<Pod>>,       // 修改
+    pub namespaces: Vec<String>,         // 修改
+    pub deployments: Vec<String>,        // 修改
+    pub pods: HashMap<String, Vec<Pod>>, // 修改
 }
