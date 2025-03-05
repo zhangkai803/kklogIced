@@ -71,9 +71,7 @@ impl Application for Layout {
                 // 因为connection_id不匹配的连接会自动关闭
             }
             Message::WssRead(msg) => {
-                self.stream
-                    .buf
-                    .push(format!("{}: {:?}", self.stream.buf.len(), msg.to_string()));
+                self.stream.buf.push(msg.to_string());
             }
 
             Message::EnvSelected(env) => {
