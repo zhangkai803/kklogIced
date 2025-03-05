@@ -12,4 +12,4 @@ install:
 package:
 	@cp /usr/local/bin/kklog ./.vscode/kklog/kklog
 	@cp /usr/local/bin/kklogIced ./.vscode/kklog/kklogIced
-	@cp ~/.kkconf.yaml ./.vscode/kklog/.kkconf.yaml
+	@cp ~/.kkconf.yaml ./.vscode/kklog/kkconf.yaml
