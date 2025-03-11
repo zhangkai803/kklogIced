@@ -72,6 +72,9 @@ impl Application for Layout {
             }
             Message::WssRead(msg) => {
                 self.stream.buf.push(msg.to_string());
+                if self.stream.buf.len() > 2000 {
+                    let _ = self.stream.buf.drain(0..1000);
+                }
             }
 
             Message::EnvSelected(env) => {
