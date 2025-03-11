@@ -186,7 +186,7 @@ impl Application for Layout {
                 "KKlog - Iced".to_string()
             } else {
                 format!(
-                    "KKlog - Iced - [{}]{}",
+                    "KKlog - Iced - [{}][{}]",
                     self.stream.namespace,
                     self.stream.pod.to_string()
                 )

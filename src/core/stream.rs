@@ -55,9 +55,11 @@ impl Stream {
                             )))
                             .into(), // Cyan
                         text("]").into(),
+                        text("[").into(),
                         text(self.pod.to_string())
                             .style(iced::theme::Text::Color(iced::Color::from_rgb8(0, 255, 0)))
                             .into(), // Green
+                        text("]").into(),
                         text(" ").into(),
                         text(s.to_string()).into(),
                     ];

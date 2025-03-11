@@ -11,7 +11,7 @@ pub struct Pod {
 
 impl ToString for Pod {
     fn to_string(&self) -> String {
-        format!("[{}]", self.name)
+        format!("{}", self.name)
     }
 }
 
