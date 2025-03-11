@@ -14,4 +14,5 @@ pub enum Message {
     DeploymentSelected(String), // 新增
     PodSelected(Pod),           // 新增
     CloneWindow,                // 新增
+    ClearBuf,
 }

@@ -152,6 +152,9 @@ impl Application for Layout {
                         });
                     }
                 }
+            },
+            Message::ClearBuf => {
+                self.stream.buf.clear();
             }
         }
 
@@ -235,6 +238,17 @@ impl Application for Layout {
         .spacing(10)
         .align_items(Alignment::Center);
 
+        let functional_btn_row = row![
+            button("Clear Buf") // 新增
+                .style(ButtonStyle::Primary) // 应用自定义样式
+                .padding([5, 10])
+                .on_press(Message::ClearBuf),
+        ]
+        .spacing(10)
+        .align_items(Alignment::End);
+
+        let sub_header = row![selector_row, horizontal_space(), functional_btn_row];
+
         let stream = container(row![
             // self.sidebar(),
             self.stream.view()
@@ -246,7 +260,7 @@ impl Application for Layout {
         .center_x()
         .center_y();
 
-        column![header, selector_row, stream]
+        column![header, sub_header, stream]
             .spacing(10)
             .padding(20)
             .into()
